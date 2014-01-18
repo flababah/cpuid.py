@@ -32,7 +32,7 @@ Getting info with eax=0:
 
     import cpuid
 
-    q = cpudid.CPUID()
+    q = cpuid.CPUID()
     eax, ebx, ecx, edx = q(0)
 
 Running the files:
