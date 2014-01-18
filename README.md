@@ -22,8 +22,8 @@ without having to compile a C wrapper is pretty neat.
 
 Limitations
 -----------
-Currently only works on 64 bit Linux. On x86 processors, of course.
-OS X might also work. Not tested.
+Currently only works on 64 bit Windows and Linux. On x86 processors, of course.
+OS X might also work; not tested.
 
 
 Examples
