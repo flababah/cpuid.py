@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+#
+#     Copyright (c) 2014 Anders Høst
+#
+
 import platform
 import os
 from ctypes import c_uint32, c_long, POINTER
