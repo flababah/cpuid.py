@@ -5,10 +5,10 @@
 
 import platform
 import os
-from ctypes import c_uint32, c_long, POINTER
-from ctypes import pythonapi, memmove, CFUNCTYPE, Structure
+import ctypes
+from ctypes import c_uint32, c_long, POINTER, CFUNCTYPE
 
-# Input registers for 64bit Posix: %rdi, %rsi
+# Call registers for 64 bit Posix: %rdi, %rsi
 _POSIX_64_OPC = [
         0x48, 0x89, 0xf0,  # mov    %rsi,%rax
         0x0f, 0xa2,        # cpuid
@@ -19,21 +19,44 @@ _POSIX_64_OPC = [
         0xc3               # retq
 ]
 
-class CPUID_struct(Structure):
+# Call registers for 64 bit Windows: %rcx, %rdx
+_WINDOWS_64_OPC = [
+        0x48, 0x89, 0xd0,  # mov    %rdx,%rax
+        0x48, 0x89, 0xcf,  # mov    %rcx, %rdi
+        0x0f, 0xa2,        # cpuid
+        0x89, 0x07,        # mov    %eax,(%rdx)
+        0x89, 0x5f, 0x04,  # mov    %ebx,0x4(%rdx)
+        0x89, 0x4f, 0x08,  # mov    %ecx,0x8(%rdx)
+        0x89, 0x57, 0x0c,  # mov    %edx,0xc(%rdx)
+        0xc3               # retq
+]
+
+is_windows = os.name == "nt"
+
+class CPUID_struct(ctypes.Structure):
     _fields_ = [(r, c_uint32) for r in ("eax", "ebx", "ecx", "edx")]
 
 class CPUID(object):
     def __init__(self):
-        if os.name != "posix" or platform.machine() != "x86_64":
-            raise SystemError("Platform not supported")
+        if ctypes.sizeof(ctypes.c_voidp) != 8:
+            raise SystemError("Only x86_64 supported for now")
 
-        code = "".join((chr(x) for x in _POSIX_64_OPC))
+        opc = _WINDOWS_64_OPC if is_windows else _POSIX_64_OPC
+        code = "".join((chr(x) for x in opc))
         self.r = CPUID_struct()
         size = len(code)
 
-        self.addr = pythonapi.valloc(size)
-        pythonapi.mprotect(self.addr, size, 1 | 2 | 4)
-        memmove(self.addr, code, size)
+        if is_windows:
+            # VirtualAlloc seems to fail under some weird circumstances
+            # when ctypes.windll.kernel32 is used. CDLL fixes this.
+            self.win = ctypes.CDLL("kernel32.dll")
+            self.addr = self.win.VirtualAlloc(None, size, 0x1000, 0x40)
+        else:
+            self.addr = ctypes.pythonapi.valloc(size)
+            ctypes.pythonapi.mprotect(self.addr, size, 1 | 2 | 4)
+
+        assert self.addr
+        ctypes.memmove(self.addr, code, size)
         func_type = CFUNCTYPE(None, POINTER(CPUID_struct), c_long)
         self.func_ptr = func_type(self.addr)
 
@@ -42,10 +65,12 @@ class CPUID(object):
         return (self.r.eax, self.r.ebx, self.r.ecx, self.r.edx)
 
     def __del__(self):
-        # Seems to throw exception when the program ends and pythonapi
-        # is cleaned up before the object?
-        if pythonapi:
-            pythonapi.free(self.addr)
+        if is_windows:
+            self.win.VirtualFree(self.addr, 0, 0x8000)
+        elif ctypes.pythonapi:
+            # Seems to throw exception when the program ends and
+            # pythonapi is cleaned up before the object?
+            ctypes.pythonapi.free(self.addr)
 
 if __name__ == "__main__":
     def valid_inputs():
@@ -56,10 +81,8 @@ if __name__ == "__main__":
                 regs = cpuid(eax)
                 yield (eax, regs)
                 eax += 1
-        del cpuid
 
     print " ".join(x.ljust(8) for x in ("CPUID", "A", "B", "C", "D"))
     for eax, tups in valid_inputs():
         print "%08x" % eax,
         print "%08x " * 4 % tups
-
