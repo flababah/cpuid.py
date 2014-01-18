@@ -9,21 +9,21 @@ instruction. Well, not exactly pure Python...
 
 It works by allocating a small piece of virtual memory, copying
 a raw x86 function to that memory, giving the memory execute
-premissions and then calling the memory as a function. The injected
+permissions and then calling the memory as a function. The injected
 function executes the CPUID instruction and copies the result back
 to a ctypes.Structure where is can be read by Python.
 
 
 Why?
 ----
-For poops and giggles. Plus having access to a low-level feature
+For poops and giggles. Plus, having access to a low-level feature
 without having to compile a C wrapper is pretty neat.
 
 
 Limitations
 -----------
-Currently only works on 64bit Linux. And on x86 processors, of course.
-OS X might also work.
+Currently only works on 64 bit Linux. On x86 processors, of course.
+OS X might also work. Not tested.
 
 
 Examples
@@ -48,10 +48,9 @@ Running the files:
     SSSE3     : Yes
     SSE4.1    : Yes
     SSE4.2    : Yes
-    SSEa      : --
+    SSE4a     : --
     AVX       : --
     AVX2      : --
-    
     
     $ python cpuid.py
     CPUID    A        B        C        D       
