@@ -8,27 +8,37 @@ import os
 import ctypes
 from ctypes import c_uint32, c_long, POINTER, CFUNCTYPE
 
-# Call registers for 64 bit Posix: %rdi, %rsi
+# Posix x86_64:
+# Two first call registers : RDI, RSI
+# Volatile registers       : RAX, RCX, RDX, RSI, RDI, R8-11
+
+# Windows x86_64:
+# Two first call registers : RCX, RDX
+# Volatile registers       : RAX, RCX, RDX, R8-11
+
 _POSIX_64_OPC = [
-        0x48, 0x89, 0xf0,  # mov    %rsi,%rax
-        0x0f, 0xa2,        # cpuid
-        0x89, 0x07,        # mov    %eax,(%rdi)
-        0x89, 0x5f, 0x04,  # mov    %ebx,0x4(%rdi)
-        0x89, 0x4f, 0x08,  # mov    %ecx,0x8(%rdi)
-        0x89, 0x57, 0x0c,  # mov    %edx,0xc(%rdi)
-        0xc3               # retq
+        0x53,                    # push   %rbx
+        0x48, 0x89, 0xf0,        # mov    %rsi,%rax
+        0x0f, 0xa2,              # cpuid
+        0x89, 0x07,              # mov    %eax,(%rdi)
+        0x89, 0x5f, 0x04,        # mov    %ebx,0x4(%rdi)
+        0x89, 0x4f, 0x08,        # mov    %ecx,0x8(%rdi)
+        0x89, 0x57, 0x0c,        # mov    %edx,0xc(%rdi)
+        0x5b,                    # pop    %rbx
+        0xc3                     # retq
 ]
 
-# Call registers for 64 bit Windows: %rcx, %rdx
 _WINDOWS_64_OPC = [
-        0x48, 0x89, 0xd0,  # mov    %rdx,%rax
-        0x48, 0x89, 0xcf,  # mov    %rcx, %rdi
-        0x0f, 0xa2,        # cpuid
-        0x89, 0x07,        # mov    %eax,(%rdx)
-        0x89, 0x5f, 0x04,  # mov    %ebx,0x4(%rdx)
-        0x89, 0x4f, 0x08,  # mov    %ecx,0x8(%rdx)
-        0x89, 0x57, 0x0c,  # mov    %edx,0xc(%rdx)
-        0xc3               # retq
+        0x53,                    # push   %rbx
+        0x48, 0x89, 0xd0,        # mov    %rdx,%rax
+        0x49, 0x89, 0xc8,        # mov    %rcx, %r8
+        0x0f, 0xa2,              # cpuid
+        0x41, 0x89, 0x00,        # mov    %eax,(%r8)
+        0x41, 0x89, 0x58, 0x04,  # mov    %ebx,0x4(%r8)
+        0x41, 0x89, 0x48, 0x08,  # mov    %ecx,0x8(%r8)
+        0x41, 0x89, 0x50, 0x0c,  # mov    %edx,0xc(%r8)
+        0x5b,                    # pop    %rbx
+        0xc3                     # retq
 ]
 
 is_windows = os.name == "nt"
@@ -86,3 +96,6 @@ if __name__ == "__main__":
     for eax, tups in valid_inputs():
         print "%08x" % eax,
         print "%08x " * 4 % tups
+
+
+
