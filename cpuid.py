@@ -97,5 +97,3 @@ if __name__ == "__main__":
         print "%08x" % eax,
         print "%08x " * 4 % tups
 
-
-
