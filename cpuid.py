@@ -68,7 +68,7 @@ class CPUID_struct(ctypes.Structure):
 
 class CPUID(object):
     def __init__(self):
-        if platform.machine() not in ("AMD64", "x86_64", "x86"):
+        if platform.machine() not in ("AMD64", "x86_64", "x86", "i686"):
             raise SystemError("Only available for x86")
         
         if is_windows:

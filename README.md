@@ -13,17 +13,15 @@ permissions and then calling the memory as a function. The injected
 function executes the CPUID instruction and copies the result back
 to a ctypes.Structure where is can be read by Python.
 
+It should work fine on both 32 and 64 bit versions of Windows and Linux
+running x86 processors. Apple OS X and other BSD systems should also work,
+not tested though...
+
 
 Why?
 ----
 For poops and giggles. Plus, having access to a low-level feature
 without having to compile a C wrapper is pretty neat.
-
-
-Limitations
------------
-Currently only works on 64 bit Windows and Linux. On x86 processors, of course.
-OS X might also work; not tested.
 
 
 Examples
