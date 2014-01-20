@@ -16,6 +16,10 @@ from ctypes import c_uint32, c_long, POINTER, CFUNCTYPE
 # Two first call registers : RCX, RDX
 # Volatile registers       : RAX, RCX, RDX, R8-11
 
+# cdecl 32 bit:
+# Two first call registers : Stack (%esp)
+# Volatile registers       : EAX, ECX, EDX
+
 _POSIX_64_OPC = [
         0x53,                    # push   %rbx
         0x48, 0x89, 0xf0,        # mov    %rsi,%rax
@@ -41,25 +45,53 @@ _WINDOWS_64_OPC = [
         0xc3                     # retq
 ]
 
+_CDECL_32_OPC = [
+        0x8b, 0x7c, 0x24, 0x04,  # mov    0x4(%esp),%edi
+        0x8b, 0x44, 0x24, 0x08,  # mov    0x8(%esp),%eax
+        0x53,                    # push   %ebx
+        0x57,                    # push   %edi
+        0x0f, 0xa2,              # cpuid
+        0x89, 0x07,              # mov    %eax,(%edi)
+        0x89, 0x5f, 0x04,        # mov    %ebx,0x4(%edi)
+        0x89, 0x4f, 0x08,        # mov    %ecx,0x8(%edi)
+        0x89, 0x57, 0x0c,        # mov    %edx,0xc(%edi)
+        0x5f,                    # pop    %edi
+        0x5b,                    # pop    %ebx
+        0xc3                     # ret
+]
+
 is_windows = os.name == "nt"
+is_64bit   = ctypes.sizeof(ctypes.c_voidp) == 8
 
 class CPUID_struct(ctypes.Structure):
     _fields_ = [(r, c_uint32) for r in ("eax", "ebx", "ecx", "edx")]
 
 class CPUID(object):
     def __init__(self):
-        if ctypes.sizeof(ctypes.c_voidp) != 8:
-            raise SystemError("Only x86_64 supported for now")
-
-        opc = _WINDOWS_64_OPC if is_windows else _POSIX_64_OPC
+        if platform.machine() not in ("AMD64", "x86_64", "x86"):
+            raise SystemError("Only available for x86")
+        
+        if is_windows:
+            if is_64bit:
+                # VirtualAlloc seems to fail under some weird
+                # circumstances when ctypes.windll.kernel32 is
+                # used under 64 bit Python. CDLL fixes this.
+                self.win = ctypes.CDLL("kernel32.dll")
+                opc = _WINDOWS_64_OPC
+            else:
+                # Here ctypes.windll.kernel32 is needed to get the
+                # right DLL. Otherwise it will fail when running
+                # 32 bit Python on 64 bit Windows.
+                self.win = ctypes.windll.kernel32
+                opc = _CDECL_32_OPC
+        else:
+            opc = _POSIX_64_OPC if is_64bit else _CDECL_32_OPC
+            
         code = "".join((chr(x) for x in opc))
-        self.r = CPUID_struct()
         size = len(code)
+        self.r = CPUID_struct()
 
         if is_windows:
-            # VirtualAlloc seems to fail under some weird circumstances
-            # when ctypes.windll.kernel32 is used. CDLL fixes this.
-            self.win = ctypes.CDLL("kernel32.dll")
             self.addr = self.win.VirtualAlloc(None, size, 0x1000, 0x40)
         else:
             self.addr = ctypes.pythonapi.valloc(size)
@@ -67,7 +99,7 @@ class CPUID(object):
 
         assert self.addr
         ctypes.memmove(self.addr, code, size)
-        func_type = CFUNCTYPE(None, POINTER(CPUID_struct), c_long)
+        func_type = CFUNCTYPE(None, POINTER(CPUID_struct), c_uint32)
         self.func_ptr = func_type(self.addr)
 
     def __call__(self, eax):
