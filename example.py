@@ -40,4 +40,6 @@ if __name__ == "__main__":
     print("SSE4a     : %s" % is_set(cpu, 0x80000001, 2, 6))
     print("AVX       : %s" % is_set(cpu, 1, 2, 28))
     print("AVX2      : %s" % is_set(cpu, 7, 1, 5))
+    print("BMI1      : %s" % is_set(cpu, 7, 1, 3))
+    print("BMI2      : %s" % is_set(cpu, 7, 1, 8))
 
