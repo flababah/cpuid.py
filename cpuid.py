@@ -25,6 +25,7 @@ from ctypes import c_uint32, c_int, c_size_t, c_void_p, POINTER, CFUNCTYPE
 _POSIX_64_OPC = [
         0x53,                    # push   %rbx
         0x48, 0x89, 0xf0,        # mov    %rsi,%rax
+        0x31, 0xc9,              # xor    %ecx,%ecx
         0x0f, 0xa2,              # cpuid
         0x89, 0x07,              # mov    %eax,(%rdi)
         0x89, 0x5f, 0x04,        # mov    %ebx,0x4(%rdi)
