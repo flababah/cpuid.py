@@ -3,6 +3,8 @@
 #     Copyright (c) 2014 Anders Høst
 #
 
+from __future__ import print_function
+
 import platform
 import os
 import ctypes
@@ -86,9 +88,10 @@ class CPUID(object):
                 opc = _CDECL_32_OPC
         else:
             opc = _POSIX_64_OPC if is_64bit else _CDECL_32_OPC
-            
-        code = "".join((chr(x) for x in opc))
-        size = len(code)
+
+        size = len(opc)
+        code = (ctypes.c_ubyte * size)(*opc)
+
         self.r = CPUID_struct()
 
         if is_windows:
@@ -124,8 +127,7 @@ if __name__ == "__main__":
                 yield (eax, regs)
                 eax += 1
 
-    print " ".join(x.ljust(8) for x in ("CPUID", "A", "B", "C", "D"))
-    for eax, tups in valid_inputs():
-        print "%08x" % eax,
-        print "%08x " * 4 % tups
+    print(" ".join(x.ljust(8) for x in ("CPUID", "A", "B", "C", "D")).strip())
+    for eax, regs in valid_inputs():
+        print("%08x" % eax, " ".join("%08x" % reg for reg in regs))
 
