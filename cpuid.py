@@ -3,10 +3,12 @@
 #     Copyright (c) 2014 Anders Høst
 #
 
+from __future__ import print_function
+
 import platform
 import os
 import ctypes
-from ctypes import c_uint32, c_long, POINTER, CFUNCTYPE
+from ctypes import c_uint32, c_int, c_size_t, c_void_p, POINTER, CFUNCTYPE
 
 # Posix x86_64:
 # Two first call registers : RDI, RSI
@@ -86,19 +88,32 @@ class CPUID(object):
                 opc = _CDECL_32_OPC
         else:
             opc = _POSIX_64_OPC if is_64bit else _CDECL_32_OPC
-            
-        code = "".join((chr(x) for x in opc))
-        size = len(code)
+
+        size = len(opc)
+        code = (ctypes.c_ubyte * size)(*opc)
+
         self.r = CPUID_struct()
 
         if is_windows:
             self.addr = self.win.VirtualAlloc(None, size, 0x1000, 0x40)
+            if not self.addr:
+                raise MemoryError("Could not allocate RWX memory")
         else:
+            ctypes.pythonapi.valloc.restype = ctypes.c_void_p
+            ctypes.pythonapi.valloc.argtypes = [ctypes.c_size_t]
             self.addr = ctypes.pythonapi.valloc(size)
-            ctypes.pythonapi.mprotect(self.addr, size, 1 | 2 | 4)
+            if not self.addr:
+                raise MemoryError("Could not allocate memory")
 
-        assert self.addr
+            ctypes.pythonapi.mprotect.restype = c_int
+            ctypes.pythonapi.mprotect.argtypes = [c_void_p, c_size_t, c_int]
+            ret = ctypes.pythonapi.mprotect(self.addr, size, 1 | 2 | 4)
+            if ret != 0:
+                raise OSError("Failed to set RWX")
+
+
         ctypes.memmove(self.addr, code, size)
+
         func_type = CFUNCTYPE(None, POINTER(CPUID_struct), c_uint32)
         self.func_ptr = func_type(self.addr)
 
@@ -112,6 +127,8 @@ class CPUID(object):
         elif ctypes.pythonapi:
             # Seems to throw exception when the program ends and
             # pythonapi is cleaned up before the object?
+            ctypes.pythonapi.free.restype = None
+            ctypes.pythonapi.free.argtypes = [c_void_p]
             ctypes.pythonapi.free(self.addr)
 
 if __name__ == "__main__":
@@ -124,8 +141,7 @@ if __name__ == "__main__":
                 yield (eax, regs)
                 eax += 1
 
-    print " ".join(x.ljust(8) for x in ("CPUID", "A", "B", "C", "D"))
-    for eax, tups in valid_inputs():
-        print "%08x" % eax,
-        print "%08x " * 4 % tups
+    print(" ".join(x.ljust(8) for x in ("CPUID", "A", "B", "C", "D")).strip())
+    for eax, regs in valid_inputs():
+        print("%08x" % eax, " ".join("%08x" % reg for reg in regs))
 
