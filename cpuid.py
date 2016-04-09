@@ -25,6 +25,7 @@ from ctypes import c_uint32, c_int, c_size_t, c_void_p, POINTER, CFUNCTYPE
 _POSIX_64_OPC = [
         0x53,                    # push   %rbx
         0x48, 0x89, 0xf0,        # mov    %rsi,%rax
+        0x31, 0xc9,              # xor    %ecx,%ecx
         0x0f, 0xa2,              # cpuid
         0x89, 0x07,              # mov    %eax,(%rdi)
         0x89, 0x5f, 0x04,        # mov    %ebx,0x4(%rdi)
@@ -38,6 +39,7 @@ _WINDOWS_64_OPC = [
         0x53,                    # push   %rbx
         0x48, 0x89, 0xd0,        # mov    %rdx,%rax
         0x49, 0x89, 0xc8,        # mov    %rcx, %r8
+        0x31, 0xc9,              # xor    %ecx,%ecx
         0x0f, 0xa2,              # cpuid
         0x41, 0x89, 0x00,        # mov    %eax,(%r8)
         0x41, 0x89, 0x58, 0x04,  # mov    %ebx,0x4(%r8)
@@ -52,6 +54,7 @@ _CDECL_32_OPC = [
         0x57,                    # push   %edi
         0x8b, 0x7c, 0x24, 0x0c,  # mov    0xc(%esp),%edi
         0x8b, 0x44, 0x24, 0x10,  # mov    0x10(%esp),%eax
+        0x31, 0xc9,              # xor    %ecx,%ecx
         0x0f, 0xa2,              # cpuid
         0x89, 0x07,              # mov    %eax,(%edi)
         0x89, 0x5f, 0x04,        # mov    %ebx,0x4(%edi)
