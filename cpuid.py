@@ -102,15 +102,16 @@ class CPUID(object):
             if not self.addr:
                 raise MemoryError("Could not allocate RWX memory")
         else:
-            ctypes.pythonapi.valloc.restype = ctypes.c_void_p
-            ctypes.pythonapi.valloc.argtypes = [ctypes.c_size_t]
-            self.addr = ctypes.pythonapi.valloc(size)
+            self.libc = ctypes.cdll.LoadLibrary(None)
+            self.libc.valloc.restype = ctypes.c_void_p
+            self.libc.valloc.argtypes = [ctypes.c_size_t]
+            self.addr = self.libc.valloc(size)
             if not self.addr:
                 raise MemoryError("Could not allocate memory")
 
-            ctypes.pythonapi.mprotect.restype = c_int
-            ctypes.pythonapi.mprotect.argtypes = [c_void_p, c_size_t, c_int]
-            ret = ctypes.pythonapi.mprotect(self.addr, size, 1 | 2 | 4)
+            self.libc.mprotect.restype = c_int
+            self.libc.mprotect.argtypes = [c_void_p, c_size_t, c_int]
+            ret = self.libc.mprotect(self.addr, size, 1 | 2 | 4)
             if ret != 0:
                 raise OSError("Failed to set RWX")
 
@@ -127,12 +128,12 @@ class CPUID(object):
     def __del__(self):
         if is_windows:
             self.win.VirtualFree(self.addr, 0, 0x8000)
-        elif ctypes.pythonapi:
+        elif self.libc:
             # Seems to throw exception when the program ends and
-            # pythonapi is cleaned up before the object?
-            ctypes.pythonapi.free.restype = None
-            ctypes.pythonapi.free.argtypes = [c_void_p]
-            ctypes.pythonapi.free(self.addr)
+            # libc is cleaned up before the object?
+            self.libc.free.restype = None
+            self.libc.free.argtypes = [c_void_p]
+            self.libc.free(self.addr)
 
 if __name__ == "__main__":
     def valid_inputs():
