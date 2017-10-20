@@ -8,7 +8,7 @@ from __future__ import print_function
 import platform
 import os
 import ctypes
-from ctypes import c_uint32, c_int, c_size_t, c_void_p, POINTER, CFUNCTYPE
+from ctypes import c_uint32, c_int, c_long, c_ulong, c_size_t, c_void_p, POINTER, CFUNCTYPE
 
 # Posix x86_64:
 # Two first call registers : RDI, RSI
@@ -98,6 +98,8 @@ class CPUID(object):
         self.r = CPUID_struct()
 
         if is_windows:
+            self.win.VirtualAlloc.restype = c_void_p
+            self.win.VirtualAlloc.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_ulong, ctypes.c_ulong]
             self.addr = self.win.VirtualAlloc(None, size, 0x1000, 0x40)
             if not self.addr:
                 raise MemoryError("Could not allocate RWX memory")
@@ -126,6 +128,8 @@ class CPUID(object):
 
     def __del__(self):
         if is_windows:
+            self.win.VirtualFree.restype = c_long
+            self.win.VirtualFree.argtypes = [c_void_p, c_size_t, c_ulong]
             self.win.VirtualFree(self.addr, 0, 0x8000)
         elif ctypes.pythonapi:
             # Seems to throw exception when the program ends and
