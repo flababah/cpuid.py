@@ -95,8 +95,6 @@ class CPUID(object):
         size = len(opc)
         code = (ctypes.c_ubyte * size)(*opc)
 
-        self.r = CPUID_struct()
-
         if is_windows:
             self.win.VirtualAlloc.restype = c_void_p
             self.win.VirtualAlloc.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_ulong, ctypes.c_ulong]
@@ -124,8 +122,9 @@ class CPUID(object):
         self.func_ptr = func_type(self.addr)
 
     def __call__(self, eax, ecx=0):
-        self.func_ptr(self.r, eax, ecx)
-        return (self.r.eax, self.r.ebx, self.r.ecx, self.r.edx)
+        struct = CPUID_struct()
+        self.func_ptr(struct, eax, ecx)
+        return struct.eax, struct.ebx, struct.ecx, struct.edx
 
     def __del__(self):
         if is_windows:
