@@ -38,7 +38,7 @@ _POSIX_64_OPC = [
 _WINDOWS_64_OPC = [
         0x53,                    # push   %rbx
         0x89, 0xd0,              # mov    %edx,%eax
-        0x41, 0x89, 0xc9,        # mov    %ecx,%r9d
+        0x49, 0x89, 0xc9,        # mov    %rcx,%r9
         0x44, 0x89, 0xc1,        # mov    %r8d,%ecx
         0x0f, 0xa2,              # cpuid
         0x41, 0x89, 0x01,        # mov    %eax,(%r9)
