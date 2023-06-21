@@ -103,18 +103,11 @@ class CPUID(object):
                 raise MemoryError("Could not allocate RWX memory")
         else:
             self.libc = ctypes.cdll.LoadLibrary(None)
-            self.libc.valloc.restype = ctypes.c_void_p
-            self.libc.valloc.argtypes = [ctypes.c_size_t]
-            self.addr = self.libc.valloc(size)
-            if not self.addr:
+            self.libc.mmap.restype = ctypes.c_void_p
+            self.libc.mmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_size_t]
+            self.addr = self.libc.mmap(None, size, 1 | 2 | 4, 0x22, -1, 0)
+            if self.addr == ctypes.c_size_t(-1).value:
                 raise MemoryError("Could not allocate memory")
-
-            self.libc.mprotect.restype = c_int
-            self.libc.mprotect.argtypes = [c_void_p, c_size_t, c_int]
-            ret = self.libc.mprotect(self.addr, size, 1 | 2 | 4)
-            if ret != 0:
-                raise OSError("Failed to set RWX")
-
 
         ctypes.memmove(self.addr, code, size)
 
@@ -134,9 +127,9 @@ class CPUID(object):
         elif self.libc:
             # Seems to throw exception when the program ends and
             # libc is cleaned up before the object?
-            self.libc.free.restype = None
-            self.libc.free.argtypes = [c_void_p]
-            self.libc.free(self.addr)
+            self.libc.munmap.restype = ctypes.c_int
+            self.libc.munmap.argtypes = [c_void_p, c_size_t]
+            self.libc.munmap(ctypes.c_void_p(self.addr), 1)
 
 if __name__ == "__main__":
     def valid_inputs():
