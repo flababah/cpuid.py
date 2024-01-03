@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#     Copyright (c) 2014 Anders Høst
+#     Copyright (c) 2024 Anders Høst
 #
 
 from __future__ import print_function
@@ -8,27 +8,34 @@ from __future__ import print_function
 import struct
 import cpuid
 
+
 def cpu_vendor(cpu):
     _, b, c, d = cpu(0)
     return struct.pack("III", b, d, c).decode("utf-8")
 
-def cpu_name(cpu):
-    return "".join((struct.pack("IIII", *cpu(0x80000000 + i)).decode("utf-8")
-            for i in range(2, 5))).strip()
 
-"""
-@param {leaf} %eax
-@param {sublead} %ecx, 0 in most cases
-@param {reg_idx} idx of [%eax, %ebx, %ecx, %edx], 0-based
-@param {bit} bit of reg selected by {reg_idx}, 0-based
-"""
+def cpu_name(cpu):
+    name = "".join((struct.pack("IIII", *cpu(0x80000000 + i)).decode("utf-8")
+                    for i in range(2, 5)))
+
+    return name.split('\x00', 1)[0]
+
+
 def is_set(cpu, leaf, subleaf, reg_idx, bit):
+    """
+    @param {leaf} %eax
+    @param {sublead} %ecx, 0 in most cases
+    @param {reg_idx} idx of [%eax, %ebx, %ecx, %edx], 0-based
+    @param {bit} bit of reg selected by {reg_idx}, 0-based
+    """
+
     regs = cpu(leaf, subleaf)
 
     if (1 << bit) & regs[reg_idx]:
         return "Yes"
     else:
         return "--"
+
 
 if __name__ == "__main__":
     cpu = cpuid.CPUID()
