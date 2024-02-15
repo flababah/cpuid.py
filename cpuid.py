@@ -114,9 +114,11 @@ class CPUID(object):
         func_type = CFUNCTYPE(None, POINTER(CPUID_struct), c_uint32, c_uint32)
         self.func_ptr = func_type(self.addr)
 
-    def __call__(self, eax, ecx=0):
+    def __call__(self, eax, ecx=0, unpack=True):
         struct = CPUID_struct()
         self.func_ptr(struct, eax, ecx)
+        if not unpack:
+            return struct
         return struct.eax, struct.ebx, struct.ecx, struct.edx
 
     def __del__(self):
