@@ -112,16 +112,24 @@ class CPUID(object):
             self.addr = self.win.VirtualAlloc(None, size, 0x1000, 0x40)
             if not self.addr:
                 raise MemoryError("Could not allocate RWX memory")
+            ctypes.memmove(self.addr, code, size)
         else:
-            self.libc = ctypes.cdll.LoadLibrary(None)
-            self.libc.mmap.restype = ctypes.c_void_p
-            self.libc.mmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int,
-                                       ctypes.c_int, ctypes.c_int, ctypes.c_size_t]
-            self.addr = self.libc.mmap(None, size, 1 | 2 | 4, 0x22, -1, 0)
-            if self.addr == ctypes.c_size_t(-1).value:
-                raise MemoryError("Could not allocate memory")
-
-        ctypes.memmove(self.addr, code, size)
+            from mmap import (
+                mmap,
+                MAP_PRIVATE,
+                MAP_ANONYMOUS,
+                PROT_WRITE,
+                PROT_READ,
+                PROT_EXEC,
+            )
+            self.mm = mmap(
+                -1,
+                size,
+                flags=MAP_PRIVATE | MAP_ANONYMOUS,
+                prot=PROT_WRITE | PROT_READ | PROT_EXEC,
+            )
+            self.mm.write(code)
+            self.addr = ctypes.addressof(ctypes.c_int.from_buffer(self.mm))
 
         func_type = CFUNCTYPE(None, POINTER(CPUID_struct), c_uint32, c_uint32)
         self.func_ptr = func_type(self.addr)
@@ -143,12 +151,9 @@ class CPUID(object):
             self.win.VirtualFree.restype = c_long
             self.win.VirtualFree.argtypes = [c_void_p, c_size_t, c_ulong]
             self.win.VirtualFree(self.addr, 0, 0x8000)
-        elif self.libc:
-            # Seems to throw exception when the program ends and
-            # libc is cleaned up before the object?
-            self.libc.munmap.restype = ctypes.c_int
-            self.libc.munmap.argtypes = [c_void_p, c_size_t]
-            self.libc.munmap(ctypes.c_void_p(self.addr), 1)
+        else:
+            self.mm.close()
+
 
 
 if __name__ == "__main__":
