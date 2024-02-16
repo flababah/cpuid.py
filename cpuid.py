@@ -115,9 +115,16 @@ class CPUID(object):
         self.func_ptr = func_type(self.addr)
 
     def __call__(self, eax, ecx=0):
+        struct = self.registers_for(eax=eax, ecx=ecx)
+        return struct.eax, struct.ebx, struct.ecx, struct.edx
+
+    def registers_for(self, eax, ecx):
+        """Calls cpuid with eax and ecx set as the input arguments, and returns a structure
+        containing eax, ebx, ecx, and edx.
+        """
         struct = CPUID_struct()
         self.func_ptr(struct, eax, ecx)
-        return struct.eax, struct.ebx, struct.ecx, struct.edx
+        return struct
 
     def __del__(self):
         if is_windows:
