@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#     Copyright (c) 2018 Anders Høst
+#     Copyright (c) 2024 Anders Høst
 #
 
 from __future__ import print_function
@@ -8,7 +8,7 @@ from __future__ import print_function
 import platform
 import os
 import ctypes
-from ctypes import c_uint32, c_int, c_long, c_ulong, c_size_t, c_void_p, POINTER, CFUNCTYPE
+from ctypes import c_uint32, c_long, c_ulong, c_size_t, c_void_p, POINTER, CFUNCTYPE
 
 # Posix x86_64:
 # Three first call registers : RDI, RSI, RDX
@@ -66,16 +66,27 @@ _CDECL_32_OPC = [
 ]
 
 is_windows = os.name == "nt"
-is_64bit   = ctypes.sizeof(ctypes.c_voidp) == 8
+is_64bit = ctypes.sizeof(ctypes.c_voidp) == 8
+
 
 class CPUID_struct(ctypes.Structure):
-    _fields_ = [(r, c_uint32) for r in ("eax", "ebx", "ecx", "edx")]
+    _register_names = ("eax", "ebx", "ecx", "edx")
+    _fields_ = [(r, c_uint32) for r in _register_names]
+
+    def __getitem__(self, item):
+        if item not in self._register_names:
+            raise KeyError(item)
+        return getattr(self, item)
+
+    def __repr__(self):
+        return "eax=0x{:x}, ebx=0x{:x}, ecx=0x{:x}, edx=0x{:x}".format(self.eax, self.ebx, self.ecx, self.edx)
+
 
 class CPUID(object):
     def __init__(self):
         if platform.machine() not in ("AMD64", "x86_64", "x86", "i686"):
             raise SystemError("Only available for x86")
-        
+
         if is_windows:
             if is_64bit:
                 # VirtualAlloc seems to fail under some weird
@@ -104,7 +115,8 @@ class CPUID(object):
         else:
             self.libc = ctypes.cdll.LoadLibrary(None)
             self.libc.mmap.restype = ctypes.c_void_p
-            self.libc.mmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_size_t]
+            self.libc.mmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int,
+                                       ctypes.c_int, ctypes.c_int, ctypes.c_size_t]
             self.addr = self.libc.mmap(None, size, 1 | 2 | 4, 0x22, -1, 0)
             if self.addr == ctypes.c_size_t(-1).value:
                 raise MemoryError("Could not allocate memory")
@@ -118,7 +130,7 @@ class CPUID(object):
         struct = self.registers_for(eax=eax, ecx=ecx)
         return struct.eax, struct.ebx, struct.ecx, struct.edx
 
-    def registers_for(self, eax, ecx):
+    def registers_for(self, eax, ecx=0):
         """Calls cpuid with eax and ecx set as the input arguments, and returns a structure
         containing eax, ebx, ecx, and edx.
         """
@@ -138,6 +150,7 @@ class CPUID(object):
             self.libc.munmap.argtypes = [c_void_p, c_size_t]
             self.libc.munmap(ctypes.c_void_p(self.addr), 1)
 
+
 if __name__ == "__main__":
     def valid_inputs():
         cpuid = CPUID()
@@ -148,7 +161,7 @@ if __name__ == "__main__":
                 yield (eax, regs)
                 eax += 1
 
+
     print(" ".join(x.ljust(8) for x in ("CPUID", "A", "B", "C", "D")).strip())
     for eax, regs in valid_inputs():
         print("%08x" % eax, " ".join("%08x" % reg for reg in regs))
-
