@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#     Copyright (c) 2024 Anders Høst
+#     Copyright (c) 2025 Anders Høst
 #
 
 from __future__ import print_function
@@ -139,7 +139,8 @@ class CPUID(object):
         return struct.eax, struct.ebx, struct.ecx, struct.edx
 
     def registers_for(self, eax, ecx=0):
-        """Calls cpuid with eax and ecx set as the input arguments, and returns a structure
+        """
+        Calls cpuid with eax and ecx set as the input arguments, and returns a structure
         containing eax, ebx, ecx, and edx.
         """
         struct = CPUID_struct()
@@ -155,7 +156,6 @@ class CPUID(object):
             self.mm.close()
 
 
-
 if __name__ == "__main__":
     def valid_inputs():
         cpuid = CPUID()
@@ -165,7 +165,6 @@ if __name__ == "__main__":
                 regs = cpuid(eax)
                 yield (eax, regs)
                 eax += 1
-
 
     print(" ".join(x.ljust(8) for x in ("CPUID", "A", "B", "C", "D")).strip())
     for eax, regs in valid_inputs():
